@@ -23,17 +23,17 @@ async function startServer() {
 
   app.set("trust proxy", 1);
 
-  // Security and utilities
+  
   app.use(helmet({
     contentSecurityPolicy: false, // Vite dev server needs some relaxed CSP
     crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
   }));
   app.use(express.json());
   
-  // Health check
+  
   app.get("/api/health", (req, res) => res.json({ status: "ok" }));
 
-  // API Routes
+ 
   
   // 1. Sync User
   app.post("/api/auth/sync", authLimiter, requireAuth, async (req: AuthRequest, res): Promise<any> => {
@@ -56,7 +56,7 @@ async function startServer() {
       const user = await getUserByUid(req.user!.uid);
       if (!user) return res.status(401).json({ error: "User not synced" });
       
-      // Basic validation
+      
       try {
         const parsedUrl = new URL(originalUrl);
         if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
@@ -83,7 +83,7 @@ async function startServer() {
           }).returning();
           break; // Success
         } catch (err: any) {
-          // Check for unique constraint violation (code 23505 in Postgres)
+          
           const errStr = String(err.code) + String(err.cause?.code) + String(err.message) + String(err.cause?.constraint) + String(err.detail);
           const isUniqueViolation = errStr.includes('23505') || errStr.includes('urls_alias_unique') || errStr.includes('already exists');
                                     
@@ -102,7 +102,7 @@ async function startServer() {
         return res.status(500).json({ error: "Failed to generate unique alias after multiple attempts" });
       }
 
-      // Cache the newly created URL
+    
       await redis.set(`url:${result[0].alias}`, JSON.stringify(result[0]), 'EX', 60 * 60 * 24 * 7); // Cache for 7 days
 
       logger.info(`URL created: ${result[0].alias} by user ${user.id}`);
@@ -113,7 +113,7 @@ async function startServer() {
     }
   });
 
-  // 3. List URLs
+  
   app.get("/api/urls", apiLimiter, requireAuth, async (req: AuthRequest, res): Promise<any> => {
     try {
       const user = await getUserByUid(req.user!.uid);
@@ -130,7 +130,7 @@ async function startServer() {
     }
   });
 
-  // 4. URL Analytics (Optimized with SQL GROUP BY)
+  
   app.get("/api/urls/:id/analytics", apiLimiter, requireAuth, async (req: AuthRequest, res): Promise<any> => {
     try {
       const urlId = parseInt(req.params.id, 10);
@@ -180,7 +180,7 @@ async function startServer() {
     }
   });
 
-  // 5. Delete URL
+  
   app.delete("/api/urls/:id", apiLimiter, requireAuth, async (req: AuthRequest, res): Promise<any> => {
     try {
       const urlId = parseInt(req.params.id, 10);
@@ -192,11 +192,9 @@ async function startServer() {
 
       const alias = urlRecord[0].alias;
 
-      // Delete from DB (cascade handles clicks if setup, but explicit is fine)
       await db.delete(clicks).where(eq(clicks.urlId, urlId));
       await db.delete(urls).where(eq(urls.id, urlId));
       
-      // Invalidate cache
       await redis.del(`url:${alias}`);
 
       logger.info(`URL deleted: ${alias} by user ${user.id}`);
@@ -207,23 +205,20 @@ async function startServer() {
     }
   });
 
-  // Redirect Route (Highly optimized)
   app.get("/r/:alias", redirectLimiter, async (req, res): Promise<any> => {
     try {
       const alias = req.params.alias;
       
-      // 1. Check Redis Cache
       let target: any = null;
       const cached = await redis.get(`url:${alias}`);
       
       if (cached) {
         target = JSON.parse(cached);
       } else {
-        // 2. DB Fallback
         const urlRecord = await db.select().from(urls).where(eq(urls.alias, alias));
         if (urlRecord.length > 0) {
           target = urlRecord[0];
-          // Populate cache (7 days TTL)
+          
           await redis.set(`url:${alias}`, JSON.stringify(target), 'EX', 60 * 60 * 24 * 7);
         }
       }
@@ -232,16 +227,11 @@ async function startServer() {
         return res.status(404).send("URL not found");
       }
 
-      // Check expiry
       if (target.expiresAt && new Date(target.expiresAt) < new Date()) {
         return res.status(410).send("This link has expired");
       }
-
-      // Fast Redirect
       res.redirect(target.originalUrl);
 
-      // Async Analytics Processing
-      // We don't await this, let it run in the background queue
       const ua = req.headers["user-agent"];
       const parser = new UAParser(ua);
       
@@ -270,7 +260,6 @@ async function startServer() {
     }
   });
 
-  // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },

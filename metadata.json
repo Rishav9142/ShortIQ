@@ -1,0 +1,6 @@
+{
+  "name": "ShortIQ Analytics",
+  "description": "A production-grade URL shortener with analytics and tracking.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -22,7 +22,7 @@ export default function Dashboard({ user }: Props) {
 
   const fetchUrls = async () => {
     try {
-      const token = await user.getIdToken();
+      const token = await user.getIdToken(true);
       const res = await fetch('/api/urls', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -44,7 +44,7 @@ export default function Dashboard({ user }: Props) {
     setError('');
     setLoading(true);
     try {
-      const token = await user.getIdToken();
+      const token = await user.getIdToken(true);
       const res = await fetch('/api/urls', {
         method: 'POST',
         headers: {
@@ -64,7 +64,8 @@ export default function Dashboard({ user }: Props) {
         fetchUrls();
       }
     } catch (e) {
-      setError('Network error');
+      console.error('Create URL request failed:', e);
+      setError(e instanceof TypeError ? 'Unable to reach the server. Please try again.' : 'Failed to create short URL');
     } finally {
       setLoading(false);
     }

@@ -17,9 +17,8 @@ import { logger } from "./src/lib/logger.ts";
 import { redis } from "./src/lib/redis.ts";
 import { analyticsQueue } from "./src/lib/queue.ts";
 
-async function startServer() {
+export async function createApp() {
   const app = express();
-  const PORT = 3000;
 
   app.set("trust proxy", 1);
 
@@ -260,25 +259,33 @@ async function startServer() {
     }
   });
 
-  if (process.env.NODE_ENV !== "production") {
+  if (process.env.NODE_ENV !== "production" && process.env.VERCEL !== "1") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
-  } else {
+  } else if (process.env.VERCEL !== "1") {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
+
+  return app;
+}
+
+async function startServer() {
+  const app = await createApp();
+  const PORT = 3000;
   app.listen(PORT, "localhost", () => {
     logger.info(`Server running at http://localhost:${PORT}`);
   });
 }
 
-startServer();
-
+if (process.env.VERCEL !== "1") {
+  startServer();
+}
 
 

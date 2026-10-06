@@ -77,9 +77,6 @@ export default function App() {
 
       const token = await result.user.getIdToken();
 
-      console.log("Firebase Token:");
-      console.log(token);
-
       console.log("Google Login Completed");
     } catch (error: any) {
       console.error("Google Login Failed");

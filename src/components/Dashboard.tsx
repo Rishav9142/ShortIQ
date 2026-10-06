@@ -54,9 +54,15 @@ export default function Dashboard({ user }: Props) {
         body: JSON.stringify({ originalUrl, customAlias, expiresAt: expiresAt || null })
       });
       
-      const data = await res.json();
+      const responseText = await res.text();
+      let data: { error?: string } = {};
+      try {
+        data = responseText ? JSON.parse(responseText) : {};
+      } catch {
+        data = { error: `Server returned ${res.status} ${res.statusText}` };
+      }
       if (!res.ok) {
-        setError(data.error || 'Failed to create short URL');
+        setError(data.error || `Failed to create short URL (${res.status})`);
       } else {
         setOriginalUrl('');
         setCustomAlias('');
